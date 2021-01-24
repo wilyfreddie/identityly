@@ -6,19 +6,43 @@ import face_recognition as facerecg
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from PIL import Image
+import base64
+import json
+
+
+def numpy_to_json(n_array):
+    n_list = n_array.tolist()
+    j_array = json.dumps(n_list)
+    return j_array
+
+
+def json_to_numpy(j_data):
+    j_array = json.loads(j_data)
+    n_array = np.array(j_array)
+    return n_array
 
 
 def main():
-    # loadfacedb()
-    # facerecog()
-    # compare_img()
-    # test()
-    AddFace()
+    while True:
+        # loadfacedb()
+        # facerecog()
+        # compare_img()
+        # test()
+        # AddFace()
+        CheckFace()
 
 
 def AddToDB(name, face_encoding):
     conn = sqlite3.connect("Image.db")
     cur = conn.cursor()
+
+    # create sql table
+    cur.executescript("""
+        CREATE TABLE IF NOT EXISTS ImageDB(
+            Person TEXT,
+            Face_Encoding JSON
+        );
+    """)
 
     cur.execute("""
                 INSERT INTO ImageDB (Person, Face_Encoding)
@@ -30,20 +54,69 @@ def AddToDB(name, face_encoding):
 
 
 def AddFace():
+    print("===Add Face===")
     path = input("Enter file path of image: ")
     img = facerecg.load_image_file(path)
     img_enc = facerecg.face_encodings(img, num_jitters=25)
+    print(type(img_enc[0]))
+    print(img_enc[0])
 
     if (len(img_enc) > 0):
         im = Image.open(path)
         im.show()
 
         name = input("Please enter the name of the individual shown: ")
-
-        AddToDB(name, img_enc[0])
+        face_enc = numpy_to_json(img_enc[0])
+        # print(str(face_enc))
+        AddToDB(name, face_enc)
 
     else:
         print("Did not find any face.")
+
+
+def CheckFace():
+    print("===Check Face===")
+    path = input("Enter file path of image: ")
+    img = facerecg.load_image_file(path)
+    img_enc = facerecg.face_encodings(img, num_jitters=50)
+
+    if (len(img_enc) > 0):
+        _img_enc = img_enc[0]
+        # print(_img_enc)
+        # print(">>>test")
+        # connect to existing image.db file
+        conn = sqlite3.connect("Image.db")
+        cur = conn.cursor()
+
+        # Extract face encoding data from DB
+        cur.execute("SELECT Face_Encoding FROM ImageDB")
+        rows = cur.fetchall()
+        # Extract names from DB
+        cur.execute("SELECT Person FROM ImageDB")
+        names = cur.fetchall()
+
+        found = False
+        person = ""
+        for row, name in zip(rows, names):
+            name = "".join(name)
+            row = ''.join(row)
+
+            row = json_to_numpy(row)
+
+            # comparing both images
+            match = facerecg.compare_faces([_img_enc], row, tolerance=0.4)
+            print(name)
+            print(match[0])
+            if match[0]:
+                print("Matched!")
+                person = name
+                found = True
+                break
+
+        if found == True:
+            print("The person is {person}!".format(person=person))
+        else:
+            print("No match found.")
 
 
 def loadfacedb():
