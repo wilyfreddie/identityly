@@ -57,7 +57,7 @@ def AddFace():
     print("===Add Face===")
     path = input("Enter file path of image: ")
     img = facerecg.load_image_file(path)
-    img_enc = facerecg.face_encodings(img, num_jitters=25)
+    img_enc = facerecg.face_encodings(img)
     print(type(img_enc[0]))
     print(img_enc[0])
 
@@ -78,7 +78,7 @@ def CheckFace():
     print("===Check Face===")
     path = input("Enter file path of image: ")
     img = facerecg.load_image_file(path)
-    img_enc = facerecg.face_encodings(img, num_jitters=50)
+    img_enc = facerecg.face_encodings(img)
 
     if (len(img_enc) > 0):
         _img_enc = img_enc[0]
@@ -97,6 +97,7 @@ def CheckFace():
 
         found = False
         person = ""
+        distance = 1
         for row, name in zip(rows, names):
             name = "".join(name)
             row = ''.join(row)
@@ -104,14 +105,17 @@ def CheckFace():
             row = json_to_numpy(row)
 
             # comparing both images
-            match = facerecg.compare_faces([_img_enc], row, tolerance=0.4)
-            print(name)
-            print(match[0])
+            match = facerecg.compare_faces([_img_enc], row, tolerance=0.5)
+            face_distance = facerecg.face_distance([_img_enc], row)
+            print("{name} - {match} - {face_distance}".format(name=name,
+                                                              match=match[0], face_distance=face_distance[0]))
+            # print(name)
+            # print(match[0])
             if match[0]:
-                print("Matched!")
-                person = name
-                found = True
-                break
+                if face_distance < distance:
+                    person = name
+                    distance = face_distance
+                    found = True
 
         if found == True:
             print("The person is {person}!".format(person=person))
@@ -204,7 +208,7 @@ def facerecog():
         db_enc = np.frombuffer(row)
         # print (db_enc)
         # comapiring both images
-        match = facerecg.compare_faces([img_enc], db_enc, tolerance=0.5)
+        match = facerecg.compare_faces([img_enc], db_enc, tolerance=0.6)
         # print (match)
         # 0 referes to true
         if match[0]:
